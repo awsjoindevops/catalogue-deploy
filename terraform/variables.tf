@@ -25,3 +25,7 @@ default = "dev"
 variable "zone_name" {
   default = "awsjoindevops.online"
 }
+
+variable "app_version" {
+  
+}
