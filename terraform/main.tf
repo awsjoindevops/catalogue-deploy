@@ -1,94 +1,15 @@
-resource "aws_lb_target_group" "catalogue" {
-  name     = "${local.name}-${var.tags.Component}"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = data.aws_ssm_parameter.vpc_id.value
-  deregistration_delay = 60
-  health_check {
-      healthy_threshold   = 2
-      interval            = 10
-      unhealthy_threshold = 3
-      timeout             = 5
-      path                = "/health"
-      port                = 8080
-      matcher = "200-299"
-  }
-}
-
-#create the instance
 module "catalogue" {
-  source                 = "terraform-aws-modules/ec2-instance/aws"
-  ami = data.aws_ami.centos8.id
-  name                   = "${local.name}-${var.tags.Component}-ami"
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [data.aws_ssm_parameter.catalogue_sg_id.value]
-  subnet_id              = element(split(",", data.aws_ssm_parameter.private_subnet_ids.value), 0)
-  iam_instance_profile = "roboshopforshell"
-  tags = merge(
-    var.common_tags,
-    var.tags
-  )
+  source = "git::https://github.com/awsjoindevops/terraform-roboshop-app.git?ref=master"
+  vpc_id = data.aws_ssm_parameter.vpc_id.value
+  component_sg_id = data.aws_ssm_parameter.user_sg_id.value
+  private_subnet_ids = split(",", data.aws_ssm_parameter.private_subnet_ids.value) #list of private subnte_ids
+  iam_instance_profile = var.iam_instance_profile
+  project_name = var.project_name
+  environment = var.environment
+  common_tags = var.common_tags
+  tags = var.tags
+  zone_name = var.zone_name
+  app_alb_listener_arn = data.aws_ssm_parameter.app_alb_listener_arn.value
+  rule_priority = 20
+  app_version = var.app_version
 }
-
-#provision the instance
-resource "null_resource" "catalogue" {
-  # Changes to any instance of the cluster requires re-provisioning
-  triggers = {
-    instance_id = module.catalogue.id
-  }
-
-  # Bootstrap script can run on any instance of the cluster
-  # So we just choose the first in this case
-  connection {
-    host = module.catalogue.private_ip
-    type = "ssh"
-    user = "centos"
-    password = "DevOps321"
-  }
-
-  provisioner "file" {
-    source      = "bootstrap.sh"
-    destination = "/tmp/bootstrap.sh"
-  }
-
-provisioner "remote-exec" {
-    # Bootstrap script called with private_ip of each node in the cluster
-    inline = [
-      "chmod +x /tmp/bootstrap.sh",
-      "sudo sh /tmp/bootstrap.sh catalogue dev ${var.app_version}"
-    ]
-  }
-}
-
-
-#Stop instance
-resource "aws_ec2_instance_state" "catalogue" {
-  instance_id = module.catalogue.id
-  state       = "stopped"
-  depends_on = [ null_resource.catalogue ]
-}
-
-
-#GET THE AMI from created instance
-resource "aws_ami_from_instance" "catalogue" {
-  name               = "${local.name}-${var.tags.Component}-${local.current_time}"
-  source_instance_id = module.catalogue.id
-  depends_on = [ aws_ec2_instance_state.catalogue ]
-}
-
-
-#DELETE THE INSTANCE
-resource "null_resource" "catalogue_delete" {
-  # Changes to any instance of the cluster requires re-provisioning
-  triggers = {
-    instance_id = module.catalogue.id
-  }
- provisioner "local-exec" {
-    # Bootstrap script called with private_ip of each node in the cluster
-    command = "aws ec2 terminate-instances --instance-ids ${module.catalogue.id}"
-  }
-
-  depends_on = [ aws_ami_from_instance.catalogue]
-}
-
-
