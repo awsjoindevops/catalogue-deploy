@@ -13,4 +13,5 @@ module "catalogue" {
   rule_priority = 20
   app_version = var.app_version
   
+  
 }
