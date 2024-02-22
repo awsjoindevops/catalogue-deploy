@@ -20,7 +20,7 @@ pipeline {
         booleanParam(name: 'Create', defaultValue: 'false', description: 'What is Create?')
     }
     // build
-    stages {
+ stages {
         stage('Print version') {
             steps {
                 sh """
