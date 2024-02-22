@@ -12,6 +12,7 @@ module "catalogue" {
   app_alb_listener_arn = data.aws_ssm_parameter.app_alb_listener_arn.value
   rule_priority = 20
   app_version = var.app_version
+  
 
   
 }
