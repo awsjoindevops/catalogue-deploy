@@ -1,4 +1,4 @@
-bucket = "daws76s-state-dev"
+bucket = "awsjoindevops-state-prod"
 key    = "catalogue"
 region = "us-east-1"
-dynamodb_table = "daws76s-locking-dev"
+dynamodb_table = "awsjoindevops-locking-prod"
